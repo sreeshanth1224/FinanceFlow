@@ -1,0 +1,20 @@
+{
+  "users": [
+    {
+      "_id": "id_yr9d5czdx",
+      "fullName": "Sreeshanth Reddy",
+      "username": "sreeshanth",
+      "email": "sreeshanth.bandi12@gmail.com",
+      "passwordHash": "$2b$10$ItkQOFgNK7SycSB6oPxrwuqG0LH1qG02l58hTWkMqaWkhs8fAY.1m",
+      "currency": "USD",
+      "monthlySalary": 0,
+      "monthlyBudget": 0,
+      "monthlySavingGoal": 0,
+      "createdAt": "2026-06-26T22:28:32.573Z",
+      "updatedAt": "2026-06-26T22:28:32.573Z"
+    }
+  ],
+  "transactions": [],
+  "goals": [],
+  "settings": []
+}

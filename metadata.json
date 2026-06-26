@@ -1,0 +1,6 @@
+{
+  "name": "FinanceFlow",
+  "description": "A modern personal finance dashboard designed with a bold Neo-Brutalism aesthetic.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
