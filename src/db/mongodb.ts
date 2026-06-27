@@ -105,12 +105,32 @@ class LocalMongoCollection<T extends { _id: string }> {
 
     if (filter) {
       items = items.filter((item: any) => {
-        for (const key in filter) {
-          if (filter[key] !== undefined && item[key] !== filter[key]) {
-            return false;
-          }
+        // Handle $or operator
+        if (filter.$or && Array.isArray(filter.$or)) {
+          const orMatch = filter.$or.some((condition: any) => {
+            // Each condition in $or is a set of fields that must all match (AND logic for that block)
+            return Object.keys(condition).every(key => {
+              const itemVal = item[key];
+              const condVal = condition[key];
+              return String(itemVal) === String(condVal);
+            });
+          });
+          
+          if (!orMatch) return false;
+          
+          // If $or matches, check other top-level filters (if any), excluding $or
+          const otherFilters = Object.keys(filter).filter(k => k !== "$or");
+          return otherFilters.every(key => {
+            if (filter[key] === undefined) return true;
+            return String(item[key]) === String(filter[key]);
+          });
         }
-        return true;
+
+        // Handle standard key-value filters
+        return Object.keys(filter).every(key => {
+          if (filter[key] === undefined) return true;
+          return String(item[key]) === String(filter[key]);
+        });
       });
     }
 
@@ -145,11 +165,15 @@ class LocalMongoCollection<T extends { _id: string }> {
     return { insertedId: newId };
   }
 
-  async updateOne(filter: { _id: any }, update: any): Promise<{ modifiedCount: number }> {
+  async updateOne(filter: any, update: any): Promise<{ modifiedCount: number; matchedCount: number }> {
     const items = this.read();
-    const filterIdStr = filter._id?.toString();
-    const index = items.findIndex((item) => (item._id || "").toString() === filterIdStr);
-    if (index === -1) return { modifiedCount: 0 };
+    const index = items.findIndex((item: any) => {
+      return Object.keys(filter).every(key => {
+        if (filter[key] === undefined) return true;
+        return String(item[key]) === String(filter[key]);
+      });
+    });
+    if (index === -1) return { modifiedCount: 0, matchedCount: 0 };
 
     const currentDoc = items[index];
     const setFields = update.$set || {};
@@ -167,32 +191,35 @@ class LocalMongoCollection<T extends { _id: string }> {
 
     items[index] = updatedDoc;
     this.write(items);
-    return { modifiedCount: 1 };
+    return { modifiedCount: 1, matchedCount: 1 };
   }
 
-  async deleteOne(filter: { _id: any }): Promise<{ deletedCount: number }> {
+  async deleteOne(filter: any): Promise<{ deletedCount: number }> {
     const items = this.read();
-    const filterIdStr = filter._id?.toString();
-    const filtered = items.filter((item) => (item._id || "").toString() !== filterIdStr);
-    if (filtered.length === items.length) return { deletedCount: 0 };
+    const index = items.findIndex((item: any) => {
+      return Object.keys(filter).every(key => {
+        if (filter[key] === undefined) return true;
+        return String(item[key]) === String(filter[key]);
+      });
+    });
+    
+    if (index === -1) return { deletedCount: 0 };
 
-    this.write(filtered);
+    items.splice(index, 1);
+    this.write(items);
     return { deletedCount: 1 };
   }
 
   async deleteMany(filter: any = {}): Promise<{ deletedCount: number }> {
-    if (Object.keys(filter).length === 0) {
-      this.write([]);
-      return { deletedCount: 999 };
-    }
     const items = this.read();
     const beforeLength = items.length;
     const remaining = items.filter((item: any) => {
       // AND logic: all filter keys must match for item to be deleted
-      for (const key in filter) {
-        if (item[key] !== filter[key]) return true; // Keep it
-      }
-      return false; // All match, delete it
+      const isMatch = Object.keys(filter).every(key => {
+        if (filter[key] === undefined) return true;
+        return String(item[key]) === String(filter[key]);
+      });
+      return !isMatch; // Keep if NOT matching
     });
     this.write(remaining);
     return { deletedCount: beforeLength - remaining.length };

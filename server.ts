@@ -44,10 +44,13 @@ async function start() {
   // Auth Endpoints
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { fullName, username, email, password } = req.body;
+      let { fullName, username, email, password } = req.body;
       if (!fullName || !username || !email || !password) {
         return res.status(400).json({ error: "Missing required fields" });
       }
+
+      username = username.trim().toLowerCase();
+      email = email.trim().toLowerCase();
 
       // Check existing user
       const existingUser = await users.findOne({ $or: [{ username }, { email }] });
@@ -74,7 +77,12 @@ async function start() {
       await users.insertOne(newUser);
       const token = jwt.sign({ userId: userId }, JWT_SECRET, { expiresIn: "7d" });
       
-      res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
+      res.cookie("token", token, { 
+        httpOnly: true, 
+        secure: process.env.NODE_ENV === "production", 
+        sameSite: "lax", 
+        maxAge: 7 * 24 * 60 * 60 * 1000 
+      });
       res.status(201).json({ _id: userId, fullName, username, email });
     } catch (err) {
       res.status(500).json({ error: "Registration failed" });
@@ -83,10 +91,12 @@ async function start() {
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const { identifier, password } = req.body;
+      let { identifier, password } = req.body;
       if (!identifier || !password) {
         return res.status(400).json({ error: "Missing credentials" });
       }
+
+      identifier = identifier.trim().toLowerCase();
 
       const user = await users.findOne({ $or: [{ email: identifier }, { username: identifier }] });
       if (!user) {
@@ -99,7 +109,12 @@ async function start() {
       }
 
       const token = jwt.sign({ userId: user._id.toString() }, JWT_SECRET, { expiresIn: "7d" });
-      res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", maxAge: 7 * 24 * 60 * 60 * 1000 });
+      res.cookie("token", token, { 
+        httpOnly: true, 
+        secure: process.env.NODE_ENV === "production", 
+        sameSite: "lax", 
+        maxAge: 7 * 24 * 60 * 60 * 1000 
+      });
       res.json({ _id: user._id, fullName: user.fullName, username: user.username, email: user.email });
     } catch (err) {
       res.status(500).json({ error: "Login failed" });
